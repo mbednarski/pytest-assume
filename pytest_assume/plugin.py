@@ -31,7 +31,7 @@ def assume(expr, msg=''):
         entry = u"{filename}:{line}: AssumptionFailure\n\t{context}".format(**locals())
         # add entry
         _FAILED_ASSUMPTIONS.append(entry)
-        if pytest.config.option.showlocals:
+        if getattr(pytest, "_showlocals", None):
             # Debatable whether we should display locals for
             # every failed assertion, or just the final one.
             # I'm defaulting to per-assumption, just because vars
@@ -41,7 +41,7 @@ def assume(expr, msg=''):
             _ASSUMPTION_LOCALS.append(pretty_locals)
 
 
-def pytest_configure():
+def pytest_configure(config):
     """
     Add tracking lists to the pytest namespace, so we can
     always access it, as well as the 'assume' function itself.
@@ -49,9 +49,10 @@ def pytest_configure():
     :return: Dictionary of name: values added to the pytest namespace.
     """
     pytest.assume = assume
+    pytest._showlocals = config.getoption("showlocals")
 
 
-@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+@pytest.hookimpl(hookwrapper=True, trylast=True)
 def pytest_runtest_makereport(item, call):
     """
     Check if the test failed, if it didn't fail, and there are

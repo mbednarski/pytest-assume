@@ -229,31 +229,31 @@ def test_with_tb(testdir):
     assert tb in result.stdout.str()
 
 
-
-def test_flaky(testdir):
-    testdir.makepyfile(
-        """
-        import pytest
-
-        @pytest.mark.flaky(reruns=2)
-        def test_func():
-            pytest.assume(False)
-        """)
-    result = testdir.runpytest_inprocess("-p", "no:flaky")
-    result.assert_outcomes(0, 0, 1)
-    assert '1 failed' in result.stdout.str()
-    assert "2 rerun" in result.stdout.str()
-
-def test_flaky2(testdir):
-    testdir.makepyfile(
-        """
-        import pytest
-        from flaky import flaky
-
-        @flaky
-        def test_func():
-            pytest.assume(False)
-        """)
-    result = testdir.runpytest_inprocess()
-    result.assert_outcomes(0, 0, 1)
-    assert '1 failed' in result.stdout.str()
+#
+# def test_flaky(testdir):
+#     testdir.makepyfile(
+#         """
+#         import pytest
+#
+#         @pytest.mark.flaky(reruns=2)
+#         def test_func():
+#             pytest.assume(False)
+#         """)
+#     result = testdir.runpytest_inprocess("-p", "no:flaky")
+#     result.assert_outcomes(0, 0, 1)
+#     assert '1 failed' in result.stdout.str()
+#     assert "2 rerun" in result.stdout.str()
+#
+# def test_flaky2(testdir):
+#     testdir.makepyfile(
+#         """
+#         import pytest
+#         from flaky import flaky
+#
+#         @flaky
+#         def test_func():
+#             pytest.assume(False)
+#         """)
+#     result = testdir.runpytest_inprocess()
+#     result.assert_outcomes(0, 0, 1)
+#     assert '1 failed' in result.stdout.str()

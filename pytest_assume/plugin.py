@@ -1,6 +1,6 @@
 import inspect
 import os.path
-import sys
+from six import reraise as raise_
 
 import pytest
 
@@ -87,6 +87,6 @@ def pytest_pyfunc_call(pyfuncitem):
             del _ASSUMPTION_LOCALS[:]
             if outcome and outcome.excinfo:
                 root_msg = "\nOriginal Failure: \n>> %s\n" % repr(outcome.excinfo[1]) + root_msg
-                raise FailedAssumption(root_msg + "".join(longrepr)).with_traceback(outcome.excinfo[2])
+                raise_(FailedAssumption, FailedAssumption(root_msg + "".join(longrepr)), outcome.excinfo[2])
             else:
                 raise FailedAssumption(root_msg + "".join(longrepr))

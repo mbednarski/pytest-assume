@@ -1,5 +1,6 @@
 import inspect
 import os.path
+from six import reraise as raise_
 
 import pytest
 
@@ -10,6 +11,10 @@ except ImportError:
 
 _FAILED_ASSUMPTIONS = []
 _ASSUMPTION_LOCALS = []
+
+
+class FailedAssumption(Exception):
+    pass
 
 
 def assume(expr, msg=''):
@@ -28,7 +33,7 @@ def assume(expr, msg=''):
         filename = os.path.relpath(filename)
         context = contextlist[0].lstrip() if not msg else msg
         # format entry
-        entry = u"{filename}:{line}: AssumptionFailure\n\t{context}".format(**locals())
+        entry = u"{filename}:{line}: AssumptionFailure\n>>\t{context}".format(**locals())
         # add entry
         _FAILED_ASSUMPTIONS.append(entry)
         if getattr(pytest, "_showlocals", None):
@@ -36,7 +41,7 @@ def assume(expr, msg=''):
             # every failed assertion, or just the final one.
             # I'm defaulting to per-assumption, just because vars
             # can easily change between assumptions.
-            pretty_locals = ["%-10s = %s" % (name, saferepr(val))
+            pretty_locals = ["\t%-10s = %s" % (name, saferepr(val))
                              for name, val in frame.f_locals.items()]
             _ASSUMPTION_LOCALS.append(pretty_locals)
 
@@ -52,47 +57,36 @@ def pytest_configure(config):
     pytest._showlocals = config.getoption("showlocals")
 
 
-@pytest.hookimpl(hookwrapper=True, trylast=True)
-def pytest_runtest_makereport(item, call):
+@pytest.hookimpl(hookwrapper=True)
+def pytest_pyfunc_call(pyfuncitem):
     """
-    Check if the test failed, if it didn't fail, and there are
-    failed assumptions, fail the test & output the assumptions as the longrepr.
+    Using pyfunc_call to be as 'close' to the actual call of the test as possible.
 
-    If the test already failed, then just add in failed assumptions to a new section
-    in the longrepr.
+    This is executed immediately after the test itself is called.
 
-    :param item:
-    :param call:
-    :return:
+    Note: I'm not happy with exception handling in here.
     """
-    outcome = yield
-    report = outcome.get_result()
-    failed_assumptions = _FAILED_ASSUMPTIONS
-    assumption_locals = _ASSUMPTION_LOCALS
-    evalxfail = getattr(item, '_evalxfail', None)
-    if call.when == "call" and failed_assumptions:
-        if evalxfail and evalxfail.wasvalid() and evalxfail.istrue():
-            report.outcome = "skipped"
-            report.wasxfail = evalxfail.getexplanation()
-        else:
-            summary = 'Failed Assumptions: %s' % len(failed_assumptions)
-            if report.longrepr:
-                # Do we want to have the locals displayed here as well?
-                # I'd say no, because the longrepr would already be displaying locals.
-                report.sections.append((summary, "\n".join(failed_assumptions)))
+    __tracebackhide__ = True
+    outcome = None
+    try:
+        outcome = yield
+    finally:
+        failed_assumptions = _FAILED_ASSUMPTIONS
+        assumption_locals = _ASSUMPTION_LOCALS
+        if failed_assumptions:
+            failed_count = len(failed_assumptions)
+            root_msg = "\n%s Failed Assumptions:\n" % failed_count
+            if assumption_locals:
+                assume_data = zip(failed_assumptions, assumption_locals)
+                longrepr = ["{0}\nLocals:\n{1}\n\n".format(assumption, "\n".join(flocals))
+                            for assumption, flocals in assume_data]
             else:
-                if assumption_locals:
-                    assume_data = zip(failed_assumptions, assumption_locals)
-                    longrepr = ["{0}\n{1}\n\n".format(assumption, "\n".join(flocals))
-                                for assumption, flocals in assume_data]
-                else:
-                    longrepr = ["\n\n".join(failed_assumptions)]
-                longrepr.append("-" * 60)
-                longrepr.append(summary)
-                report.longrepr = '\n'.join(longrepr)
-            report.outcome = "failed"
+                longrepr = ["\n\n".join(failed_assumptions)]
 
-    if _FAILED_ASSUMPTIONS:
-        del _FAILED_ASSUMPTIONS[:]
-    if _ASSUMPTION_LOCALS:
-        del _ASSUMPTION_LOCALS[:]
+            del _FAILED_ASSUMPTIONS[:]
+            del _ASSUMPTION_LOCALS[:]
+            if outcome and outcome.excinfo:
+                root_msg = "\nOriginal Failure: \n>> %s\n" % repr(outcome.excinfo[1]) + root_msg
+                raise_(FailedAssumption, FailedAssumption(root_msg + "".join(longrepr)), outcome.excinfo[2])
+            else:
+                raise FailedAssumption(root_msg + "".join(longrepr))

@@ -45,6 +45,10 @@ def assume(expr, msg=''):
                              for name, val in frame.f_locals.items()]
             _ASSUMPTION_LOCALS.append(pretty_locals)
 
+        return False
+    else:
+        return True
+
 
 def pytest_configure(config):
     """

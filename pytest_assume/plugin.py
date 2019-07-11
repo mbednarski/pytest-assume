@@ -49,6 +49,18 @@ def assume(expr, msg=''):
     else:
         return True
 
+def pytest_addoption(parser):
+    """
+    Add plugin-specific options. 
+    
+    Currently supported:
+    repr-max-len - Controns max length of repr during printing local variables
+    """
+
+    group = parser.getgroup('assume', 'pytest-assume options')
+
+    group.addoption('--assume-max-repr-len', action='store', default=240, metavar='MAX_REPR_LEN', help='TODO')
+    
 
 def pytest_configure(config):
     """

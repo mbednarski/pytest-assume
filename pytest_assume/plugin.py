@@ -41,7 +41,7 @@ def assume(expr, msg=''):
             # every failed assertion, or just the final one.
             # I'm defaulting to per-assumption, just because vars
             # can easily change between assumptions.
-            pretty_locals = ["\t%-10s = %s" % (name, saferepr(val))
+            pretty_locals = ["\t%-10s = %s" % (name, saferepr(val, pytest._assume_max_repr_len))
                              for name, val in frame.f_locals.items()]
             _ASSUMPTION_LOCALS.append(pretty_locals)
 

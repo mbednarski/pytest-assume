@@ -71,6 +71,7 @@ def pytest_configure(config):
     """
     pytest.assume = assume
     pytest._showlocals = config.getoption("showlocals")
+    pytest._assume_max_repr_len = config.getoption('--assume-max-repr-len')
 
 
 @pytest.hookimpl(hookwrapper=True)
